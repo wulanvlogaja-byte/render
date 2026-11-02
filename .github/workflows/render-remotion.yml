@@ -148,12 +148,23 @@ jobs:
           fi
           [ -n "$ENTRY" ] || { echo "::error::File entry Remotion tidak ketemu. Buat render.json dengan field entry."; exit 1; }
 
+          COMPOSITIONS=$(npx remotion compositions "$ENTRY" --quiet | tr ' ' '\n' | grep -v '^$' || true)
+          [ -n "$COMPOSITIONS" ] || { echo "::error::Composition tidak ditemukan untuk entry $ENTRY."; exit 1; }
           COMP="$COMP_INPUT"
-          [ -n "$COMP" ] || COMP=$(cfg '.composition // empty')
-          if [ -z "$COMP" ]; then
-            COMP=$(npx remotion compositions "$ENTRY" --quiet | tr ' ' '\n' | grep -v '^$' | head -n1 || true)
+          CONFIG_COMP=$(cfg '.composition // empty')
+          [ -n "$COMP" ] || COMP="$CONFIG_COMP"
+          if [ -n "$COMP" ] && ! printf '%s\n' "$COMPOSITIONS" | grep -Fxq -- "$COMP"; then
+            echo "::warning::Composition '$COMP' tidak terdaftar. Memilih komposisi valid dari proyek."
+            if [ -n "$CONFIG_COMP" ] && printf '%s\n' "$COMPOSITIONS" | grep -Fxq -- "$CONFIG_COMP"; then
+              COMP="$CONFIG_COMP"
+            elif [ "$(printf '%s\n' "$COMPOSITIONS" | wc -l)" -eq 1 ]; then
+              COMP=$(printf '%s\n' "$COMPOSITIONS" | head -n1)
+            else
+              echo "::error::Composition '$COMP' tidak tersedia. Pilihan: $(printf '%s' "$COMPOSITIONS" | paste -sd ', ' -)"
+              exit 1
+            fi
           fi
-          [ -n "$COMP" ] || { echo "::error::Composition tidak ketemu. Isi field composition di render.json."; exit 1; }
+          [ -n "$COMP" ] || COMP=$(printf '%s\n' "$COMPOSITIONS" | head -n1)
 
           EXTRA=$(cfg '(.args // []) | join(" ")')
 
