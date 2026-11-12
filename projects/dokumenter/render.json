@@ -1,0 +1,5 @@
+{
+  "entry": "src/index.ts",
+  "composition": "CinematicDocumentary",
+  "args": ["--scale=1"]
+}
